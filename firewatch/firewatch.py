@@ -75,9 +75,12 @@ def get_packages(channels):
         )
 
         try:
+            print(f"Retrieving {channel}", file=sys.stderr)
             with requests.get(repodata) as r:
                 r.raise_for_status()
-                data['packages'] = json.loads(r.text)['packages']
+                remote = json.loads(r.text)
+                data['packages'] = remote['packages']
+                data['packages'].update(remote['packages.conda'])
                 packages.append(data)
 
         except requests.exceptions.RequestException as e:
@@ -180,6 +183,9 @@ def main():
     from argparse import ArgumentParser
 
     parser = ArgumentParser()
+    parser.add_argument('package', default=[], nargs='*',
+                        help='Return package starting with pattern PACKAGE')
+
     parser.add_argument('--benchmark', action='store_true',
                         help='Display total time to parse and sort channel data')
 
@@ -260,6 +266,16 @@ def main():
         chn = info['channel']
 
         tstr = ts.isoformat()
+
+        has_package = False
+        if args.package:
+            for p in args.package:
+                if name.startswith(p):
+                    has_package = True
+
+            if not has_package:
+                continue
+
         if span_delta < ts:
             try:
                 print(f'{tstr:<20s}: {chn:<{channel_width}s}: {name:<40s}')
